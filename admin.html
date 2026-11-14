@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Atur Promo</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; padding: 40px 20px; display: flex; justify-content: center; }
+    .container { background: white; max-width: 560px; width: 100%; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+    h1 { margin: 0 0 20px; color: #3e2c1c; font-size: 1.8rem; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+    input[type="text"], input[type="password"], textarea { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; font-family: inherit; }
+    button { background: #25D366; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+    button:hover { background: #1eb355; }
+    button.secondary { background: #e74c3c; margin-top: 8px; }
+    button.secondary:hover { background: #c0392b; }
+    .note { font-size: 0.85rem; color: #666; margin-top: 15px; text-align: center; }
+
+    .dropzone {
+      border: 3px dashed #c9b8a8;
+      border-radius: 12px;
+      padding: 30px 20px;
+      text-align: center;
+      color: #8a7a6a;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #fdfaf7;
+      margin-bottom: 15px;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: #25D366;
+      background: #eefaf2;
+      color: #1eb355;
+    }
+    .dropzone p { margin: 8px 0; }
+    .dropzone .icon { font-size: 2.5rem; }
+
+    .preview-wrap { margin-bottom: 20px; }
+    .preview-img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .preview-info { font-size: 0.8rem; color: #888; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Atur Promo Hero</h1>
+
+    <div id="loginSection">
+      <label>Password Admin</label>
+      <input type="password" id="passwordInput" placeholder="Masukkan password...">
+      <button onclick="cekPassword()">Masuk</button>
+      <p class="note">Halaman ini tidak ditautkan dari mana pun. Simpan URL-nya baik-baik.</p>
+    </div>
+
+    <div id="formSection" style="display:none;">
+      <label>Gambar Promo</label>
+      <div class="dropzone" id="dropzone">
+        <div class="icon">🖼️</div>
+        <p><strong>Drag &amp; drop gambar ke sini</strong></p>
+        <p>atau klik untuk pilih file</p>
+        <p style="font-size:0.75rem; color:#aaa;">JPG / PNG / WEBP — akan dikompres otomatis</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none;">
+
+      <div class="preview-wrap" id="previewWrap" style="display:none;">
+        <img id="previewImg" class="preview-img" alt="Preview">
+        <div class="preview-info" id="previewInfo"></div>
+        <button class="secondary" onclick="hapusGambar()">Hapus Gambar</button>
+      </div>
+
+      <label>Judul Promo</label>
+      <input type="text" id="inputJudul" placeholder="Contoh: Promo Lebaran Diskon 20%">
+
+      <label>Deskripsi Promo</label>
+      <textarea id="inputDeskripsi" rows="4" placeholder="Tulis deskripsi promo di sini..."></textarea>
+
+      <button onclick="simpanPromo()">Simpan Perubahan</button>
+      <p class="note">Setelah disimpan, buka halaman utama untuk melihat hasilnya.</p>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_PASSWORD = "rahasia123"; // GANTI PASSWORD INI NANTI
+
+    let gambarBase64 = "";
+
+    function cekPassword() {
+      const input = document.getElementById('passwordInput').value;
+      if (input === ADMIN_PASSWORD) {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('formSection').style.display = 'block';
+        
+        // Ambil data dari database untuk ditampilkan di form
+        fetch('/.netlify/functions/get-promo')
+          .then(res => res.json())
+          .then(data => {
+            if(data.title) document.getElementById('inputJudul').value = data.title;
+            if(data.description) document.getElementById('inputDeskripsi').value = data.description;
+            if(data.image_base64) {
+              gambarBase64 = data.image_base64;
+              updatePreview();
+            }
+          }).catch(err => console.log("Gagal load data awal:", err));
+          
+      } else {
+        alert('Password salah!');
+      }
+    }
+
+    function updatePreview() {
+      const wrap = document.getElementById('previewWrap');
+      const img = document.getElementById('previewImg');
+      const info = document.getElementById('previewInfo');
+
+      if (gambarBase64) {
+        img.src = gambarBase64;
+        wrap.style.display = 'block';
+        const sizeKB = Math.round(gambarBase64.length * 0.75 / 1024);
+        info.textContent = `Ukuran tersimpan: ~${sizeKB} KB`;
+      } else {
+        wrap.style.display = 'none';
+        img.src = '';
+      }
+    }
+
+    function hapusGambar() {
+      if (confirm('Hapus gambar promo?')) {
+        gambarBase64 = '';
+        updatePreview();
+      }
+    }
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(ev =>
+      dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('dragover'); })
+    );
+    ['dragleave', 'drop'].forEach(ev =>
+      dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('dragover'); })
+    );
+
+    dropzone.addEventListener('drop', e => {
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) handleFile(file);
+    });
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('File harus berupa gambar!');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (evt) {
+        compressImage(evt.target.result, 1600, 0.8, (compressed) => {
+          gambarBase64 = compressed;
+          updatePreview();
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function compressImage(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = function () {
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    }
+
+    async function simpanPromo() {
+      const judul = document.getElementById('inputJudul').value.trim();
+      const deskripsi = document.getElementById('inputDeskripsi').value.trim();
+      const btn = event.target;
+      const textAwal = btn.innerText;
+
+      btn.innerText = "Menyimpan ke database...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/.netlify/functions/update-promo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_base64: gambarBase64 || null,
+            title: judul,
+            description: deskripsi
+          })
+        });
+
+        if (response.ok) {
+          alert('Mantap! Promo berhasil disimpan ke database.');
+        } else {
+          alert('Gagal menyimpan. Cek console (F12) untuk detail.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Terjadi kesalahan koneksi ke server.');
+      } finally {
+        btn.innerText = textAwal;
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
